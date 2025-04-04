@@ -1,0 +1,171 @@
+﻿/* Main container styling */
+.container {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Card styling */
+.card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+}
+
+    .card:hover {
+        transform: translateY(-5px) rotate(1deg);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(135deg, #e9ecef, #f8f9fa); /* Slightly change background on hover */
+    }
+
+.card-header {
+    padding: 1.8rem;
+    background: linear-gradient(135deg, #0d6efd, #0056b3);
+    color: white;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    transition: background 0.3s ease;
+}
+
+    .card-header:hover {
+        background: linear-gradient(135deg, #003b80, #0056b3);
+    }
+
+.card-body {
+    padding: 2.5rem;
+    transition: background-color 0.3s ease;
+}
+
+/* Form elements styling */
+.form-label {
+    font-weight: 600;
+    color: #343a40;
+    transition: color 0.3s ease;
+}
+
+.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 0.85rem 1.2rem;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 8px rgba(13, 110, 253, 0.4);
+        transform: translateY(-2px);
+    }
+
+        /* Focused input animation */
+        .form-control:focus + .form-label {
+            color: #0d6efd;
+            transform: scale(1.1);
+        }
+
+/* Button styling */
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #0056b3);
+    border: none;
+    padding: 0.9rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0056b3, #003b80);
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary:active {
+        transform: translateY(2px);
+    }
+
+.btn-link {
+    color: #6c757d;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+    .btn-link:hover {
+        color: #0d6efd;
+        text-decoration: underline;
+    }
+
+/* Validation error styling */
+.text-danger {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Background effects */
+body {
+    background-image: url('../images/work.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    animation: backgroundFade 15s infinite alternate; /* Adds a background fade effect */
+}
+
+/* Background color change */
+@keyframes backgroundFade {
+    0% {
+        filter: brightness(80%);
+    }
+
+    100% {
+        filter: brightness(100%);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .card-body {
+        padding: 2rem;
+    }
+
+    .card-header {
+        font-size: 1.2rem;
+    }
+
+    .form-control {
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+    }
+}
+
+/* Modal customization */
+.modal-content {
+    border-radius: 12px;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #0d6efd, #0056b3);
+    color: white;
+}
+
+.modal-body {
+    padding: 2rem;
+}

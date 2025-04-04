@@ -1,0 +1,30 @@
+﻿@{
+    ViewData["Title"] = "Home";
+    Layout = "_Layout"; // Must match your layout filename exactly
+}
+
+<div class="container mt-5">
+    <div class="text-center">
+        <h1 class="display-4">Welcome to Intranet</h1>
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <p class="lead">You are logged in as @User.Identity.Name</p>
+            <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary mt-3">
+                Go to Dashboard
+            </a>
+        }
+        else
+        {
+            <p class="lead">Please sign in to access company resources</p>
+            <div class="mt-4">
+                <a asp-controller="Auth" asp-action="Login" class="btn btn-primary me-2">
+                    Login
+                </a>
+                <a asp-controller="Auth" asp-action="Register" class="btn btn-outline-primary">
+                    Register
+                </a>
+            </div>
+        }
+    </div>
+</div>
