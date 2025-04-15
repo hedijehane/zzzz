@@ -4,7 +4,8 @@ using PFE.Infrastructure.Repositories;
 using PFE.Infrastructure.Services;
 using PFE.Application.Interfaces;
 using PFE.Application.UseCases.Auth;
-
+using Microsoft.Extensions.Configuration;
+using PFE.Domain.Settings;
 var builder = WebApplication.CreateBuilder(args);
 
 // Database Configuration
@@ -27,8 +28,16 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<RegisterUser>();
 builder.Services.AddScoped<LoginUser>();
 
-// Framework Services - CHANGED TO AddControllersWithViews()
-builder.Services.AddControllersWithViews(); // This enables view support
+// Email Service Configuration
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<IEmailSender, EmailSender>();
+
+// Auth Services
+builder.Services.AddScoped<ResetPassword>();
+builder.Services.AddScoped<ForgotPassword>();
+
+// Framework Services
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -47,13 +56,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles(); // Added to serve static files (CSS, JS)
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
 // Route configuration
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Auth}/{action=Login}/{id?}"); // Changed to point to Auth/Login
+    pattern: "{controller=Auth}/{action=Login}/{id?}");
 
 app.Run();
+
+// Email Settings Class (add at bottom of file)

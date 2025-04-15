@@ -1,0 +1,77 @@
+﻿@model List<PFE.Application.DTOs.UserViewDto>
+@{
+    ViewData["Title"] = "Manage Users";
+    Layout = "_Layout";
+    var departments = ViewBag.Departments as List<PFE.Application.DTOs.DepartmentViewDto>;
+    var roles = ViewBag.Roles as List<PFE.Application.DTOs.RoleViewDto>;
+}
+
+<div class="container mt-5">
+    <h2 class="mb-4">Manage Users</h2>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Role</th>
+                <th colspan="2">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <form asp-action="EditUser" method="post" class="d-flex align-items-center">
+                        <input type="hidden" name="Id" value="@user.Id" />
+                    <td>
+                        <input type="text" name="Name" value="@user.Name" class="form-control" required />
+                    </td>
+                    <td>
+                        <input type="email" name="Email" value="@user.Email" class="form-control" required />
+                    </td>
+                    <td>
+                        <select name="DepartmentId" class="form-select" required>
+                                @foreach (var dept in departments)
+                                {
+                                <option value="@dept.Id" selected="@(dept.Id == user.DepartmentId)">
+                                        @dept.Name
+                                </option>
+                                }
+                        </select>
+                    </td>
+                    <td>
+                        <select name="RoleId" class="form-select" required>
+                                @foreach (var role in roles)
+                                {
+                                <option value="@role.Id" selected="@(role.Id == user.RoleId)">
+                                        @role.Name
+                                </option>
+                                }
+                        </select>
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-success">Save</button>
+                    </td>
+                    </form>
+                    <td>
+                        <form asp-action="DeleteUser" method="post" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

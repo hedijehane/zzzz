@@ -32,11 +32,10 @@
                             <label class="form-check-label" for="rememberMe">Remember me</label>
                         </div>
 
-                        <div class="mb-4 form-check d-flex justify-content-between">
- 
-                            <a asp-action="ForgotPassword" class="text-decoration-none">Forgot my password?</a>
+                        <!-- Add this near your login button -->
+                        <div class="form-group">
+                            <a asp-action="ForgotPassword">Forgot Password?</a>
                         </div>
-
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Login</button>

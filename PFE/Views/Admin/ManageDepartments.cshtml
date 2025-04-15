@@ -1,0 +1,83 @@
+﻿@model List<PFE.Application.DTOs.DepartmentViewDto>
+
+@{
+    ViewData["Title"] = "Manage Departments";
+    Layout = "_Layout";
+}
+
+<div class="container mt-5">
+    <h2 class="mb-4">Manage Departments</h2>
+
+    <!-- Alerts -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Add Department -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            Add New Department
+        </div>
+        <div class="card-body">
+            <form asp-action="AddDepartment" method="post" class="row g-2">
+                <div class="col-md-10">
+                    <input type="text" name="departmentName" class="form-control" placeholder="Enter department name" required />
+                </div>
+                <div class="col-md-2 text-end">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- List Departments -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            Departments List
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover m-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 10%;">#</th>
+                        <th style="width: 60%;">Name</th>
+                        <th style="width: 30%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var department in Model)
+                    {
+                        <tr>
+                            <td class="align-middle">@department.Id</td>
+                            <td class="align-middle">
+                                <form asp-action="UpdateDepartment" method="post" class="d-flex">
+                                    <input type="hidden" name="id" value="@department.Id" />
+                                    <input type="text" name="departmentName" value="@department.Name" class="form-control me-2" required />
+                                    <button type="submit" class="btn btn-sm btn-warning">Update</button>
+                                </form>
+                            </td>
+                            <td class="align-middle">
+                                <form asp-action="DeleteDepartment" method="post" onsubmit="return confirm('Are you sure you want to delete this department?');">
+                                    <input type="hidden" name="id" value="@department.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
