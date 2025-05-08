@@ -1,8 +1,374 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model List<PFE.Application.DTOs.PublicationDto>
+
+@{
+    ViewData["Title"] = "Publications Feed";
+    var successMessage = TempData["Success"] as string;
+    var errorMessage = TempData["Error"] as string;
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-4">
+
+    <!-- Flash Messages -->
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <!-- Debug Info -->
+    @if (Model == null)
+    {
+        <div class="alert alert-warning">⚠️ DEBUG: Model is <strong>null</strong>.</div>
+    }
+    else if (!Model.Any())
+    {
+        <div class="alert alert-info">ℹ️ DEBUG: Model is <strong>empty</strong>.</div>
+    }
+    else
+    {
+        <div class="alert alert-success">✅ DEBUG: Model has <strong>@Model.Count</strong> publications.</div>
+    }
+
+    <!-- Create Publication -->
+    <h2 class="mt-4">Create a New Publication</h2>
+
+    <form id="createPublicationForm" asp-action="Create" asp-controller="Publication" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+
+        <div class="form-group">
+            <label for="Content">Content</label>
+            <textarea id="Content" name="Content" class="form-control" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group mt-2">
+            <label for="Image">Upload Image (optional)</label>
+            <input type="file" id="Image" name="Image" class="form-control-file" accept="image/*" />
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Post</button>
+    </form>
+
+    <hr class="my-4" />
+
+    <!-- Publications List -->
+    <h3>Latest Publications</h3>
+
+    @if (Model != null && Model.Any())
+    {
+        foreach (var pub in Model)
+        {
+            <div class="card mb-3 shadow-sm">
+                <div class="card-header bg-light">
+                    <strong>@pub.AuthorName</strong>
+                    <span class="text-muted">posted on @pub.CreatedAt.ToLocalTime().ToString("f")</span>
+                    <span class="badge bg-secondary float-end">ID: @pub.Id | Author: @pub.AuthorId</span>
+                </div>
+                <div class="card-body">
+                    <p>@pub.Content</p>
+
+                    @if (pub.ImageData != null && pub.ImageData.Length > 0)
+                    {
+                        <div class="text-center my-3">
+                            <img src="@Url.Action("GetImage", "Publication", new { id = pub.Id })"
+                                 class="img-fluid rounded"
+                                 alt="Publication Image"
+                                 style="max-height: 300px; width: auto;">
+                        </div>
+                    }
+                </div>
+                <div class="card-footer text-muted">
+                    @pub.Comments.Count comment(s) |
+                    <span class="reactions-counter" onclick="showReactions(@pub.Id)">
+                        @pub.Reactions.Count reaction(s)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Reactions Section -->
+            <div class="mt-4">
+                <h5>Reactions</h5>
+
+                <!-- Display grouped reactions summary -->
+                @if (pub.Reactions != null && pub.Reactions.Any())
+                {
+                    <div class="reaction-summary mb-3">
+                        @foreach (var group in pub.Reactions.GroupBy(r => r.Type))
+                        {
+                            <span class="badge bg-light text-dark reaction-badge" onclick="showReactions(@pub.Id)">
+                                @group.Key: @group.Count()
+                            </span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p>No reactions yet. Be the first to react!</p>
+                }
+
+                <!-- Reaction Buttons -->
+                <div class="reaction-buttons mt-3">
+                    <button class="btn btn-outline-primary reaction-button" data-publication-id="@pub.Id" data-reaction-type="Like">Like</button>
+                    <button class="btn btn-outline-danger reaction-button" data-publication-id="@pub.Id" data-reaction-type="Dislike">Dislike</button>
+                    <button class="btn btn-outline-warning reaction-button" data-publication-id="@pub.Id" data-reaction-type="Love">Love</button>
+                    <button class="btn btn-outline-secondary reaction-button" data-publication-id="@pub.Id" data-reaction-type="Anger">Anger</button>
+                </div>
+            </div>
+
+            <!-- Comment Section -->
+            <div class="mt-4">
+                <h5>Comments</h5>
+
+                <!-- Display existing comments -->
+                @if (pub.Comments != null && pub.Comments.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var comment in pub.Comments)
+                        {
+                            <li class="list-group-item">
+                                <strong>@comment.UserName</strong> <span class="text-muted">@comment.CreatedAt.ToLocalTime().ToString("f")</span>
+                                <p>@comment.Text</p>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p>No comments yet. Be the first to comment!</p>
+                }
+
+                <!-- Comment Form -->
+                <form class="mt-3 comment-form" id="commentForm_@pub.Id" data-publication-id="@pub.Id">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group">
+                        <label for="commentText_@pub.Id">Add a Comment</label>
+                        <textarea id="commentText_@pub.Id" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2">Post Comment</button>
+                </form>
+            </div>
+        }
+    }
+    else
+    {
+        <p class="text-muted">No publications available.</p>
+    }
+
 </div>
+
+<!-- Reactions Modal -->
+<div class="modal fade" id="reactionsModal" tabindex="-1" aria-labelledby="reactionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reactionsModalLabel">Reactions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="reactionsModalBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Handle comment form submission
+            $('.comment-form').on('submit', function (e) {
+                e.preventDefault();
+
+                const form = $(this);
+                const publicationId = form.data('publication-id');
+                const commentText = form.find('textarea').val();
+
+                if (!commentText.trim()) {
+                    alert("Comment cannot be empty.");
+                    return;
+                }
+
+                const token = form.find('input[name="__RequestVerificationToken"]').val();
+
+                const formData = new FormData();
+                formData.append('PublicationId', publicationId);
+                formData.append('Text', commentText);
+
+                $.ajax({
+                    url: '/Publication/AddComment',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            alert("Comment posted successfully!");
+                            location.reload();
+                        } else {
+                            alert(response.message || "Failed to post comment.");
+                        }
+                    },
+                    error: function () {
+                        alert("An error occurred while posting the comment.");
+                    }
+                });
+            });
+
+            // Handle reaction button click
+            $('.reaction-button').on('click', function () {
+                const button = $(this);
+                const publicationId = button.data('publication-id');
+                const reactionType = button.data('reaction-type');
+
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                const formData = new FormData();
+                formData.append('PublicationId', publicationId);
+                formData.append('Type', reactionType);
+
+                $.ajax({
+                    url: '/Publication/AddReaction',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            alert("Reaction posted successfully!");
+                            location.reload();
+                        } else {
+                            alert(response.message || "Failed to post reaction.");
+                        }
+                    },
+                    error: function () {
+                        alert("An error occurred while posting the reaction.");
+                    }
+                });
+            });
+        });
+
+        // Function to show reactions modal
+        function showReactions(publicationId) {
+            // Show loading state
+            $('#reactionsModalBody').html('<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+            $('#reactionsModal').modal('show');
+
+            // Fetch reactions from the server
+            $.ajax({
+                url: '/Publication/GetReactions',
+                type: 'GET',
+                data: { publicationId: publicationId },
+                success: function(response) {
+                    if (response.success) {
+                        // Display reactions in the modal
+                        displayReactionsInModal(response.data);
+                    } else {
+                        $('#reactionsModalBody').html('<div class="alert alert-danger">' + (response.message || 'Failed to load reactions') + '</div>');
+                    }
+                },
+                error: function() {
+                    $('#reactionsModalBody').html('<div class="alert alert-danger">Error connecting to server</div>');
+                }
+            });
+        }
+
+        // Function to display reactions in the modal
+        function displayReactionsInModal(reactions) {
+            if (!reactions || reactions.length === 0) {
+                $('#reactionsModalBody').html('<p>No reactions yet.</p>');
+                return;
+            }
+
+            // Group reactions by type
+            const reactionsByType = {};
+            reactions.forEach(reaction => {
+                if (!reactionsByType[reaction.type]) {
+                    reactionsByType[reaction.type] = [];
+                }
+                reactionsByType[reaction.type].push(reaction);
+            });
+
+            // Create HTML content for the modal
+            let modalContent = '<div class="reaction-list">';
+
+            // Create tabs for reaction types
+            modalContent += '<ul class="nav nav-tabs mb-3" id="reactionTabs" role="tablist">';
+            let firstTab = true;
+            for (const type in reactionsByType) {
+                const tabId = type.toLowerCase().replace(/\s+/g, '');
+                modalContent += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link ${firstTab ? 'active' : ''}"
+                                id="${tabId}-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#${tabId}"
+                                type="button"
+                                role="tab">${type} (${reactionsByType[type].length})</button>
+                    </li>`;
+                firstTab = false;
+            }
+            modalContent += '</ul>';
+
+            // Create content for each tab
+            modalContent += '<div class="tab-content" id="reactionTabContent">';
+            firstTab = true;
+            for (const type in reactionsByType) {
+                const tabId = type.toLowerCase().replace(/\s+/g, '');
+                modalContent += `
+                    <div class="tab-pane fade ${firstTab ? 'show active' : ''}"
+                         id="${tabId}"
+                         role="tabpanel">
+                         <ul class="list-group">`;
+
+                reactionsByType[type].forEach(reaction => {
+                    const date = new Date(reaction.createdAt).toLocaleString();
+                    modalContent += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${reaction.userName}</strong>
+                            </div>
+                            <span class="text-muted small">${date}</span>
+                        </li>`;
+                });
+
+                modalContent += '</ul></div>';
+                firstTab = false;
+            }
+            modalContent += '</div></div>';
+
+            // Update modal content
+            $('#reactionsModalBody').html(modalContent);
+        }
+    </script>
+
+    <style>
+        .reactions-counter, .reaction-badge {
+            cursor: pointer;
+        }
+
+            .reactions-counter:hover, .reaction-badge:hover {
+                text-decoration: underline;
+            }
+
+        .reaction-badge {
+            margin-right: 5px;
+            padding: 5px 10px;
+        }
+
+        .reaction-list {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+    </style>
+}

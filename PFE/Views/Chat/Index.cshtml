@@ -1,0 +1,159 @@
+﻿@model List<PFE.Application.DTOs.ChatDto>
+@{
+    ViewData["Title"] = "Chats";
+}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>My Chats</h2>
+        </div>
+        <div class="col-auto">
+            <a asp-action="NewPrivateChat" class="btn btn-primary">New Direct Message</a>
+            <a asp-action="NewGroupChat" class="btn btn-success">New Department Group</a>
+        </div>
+    </div>
+    <div id="chatListContainer">
+        @if (Model == null || !Model.Any())
+        {
+            <div class="alert alert-info">
+                You don't have any chats yet. Start a new conversation!
+            </div>
+        }
+        else
+        {
+            <div class="list-group" id="chatList">
+                @foreach (var chat in Model)
+                {
+                    <a asp-action="Details" asp-route-id="@chat.Id" class="list-group-item list-group-item-action @(chat.UnreadCount > 0 ? "list-group-item-primary" : "")" data-chat-id="@chat.Id">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                @(string.IsNullOrEmpty(chat.Name) ? "Unnamed Chat" : chat.Name)
+                                <span class="badge badge-secondary">@chat.ChatType</span>
+                                @if (chat.UnreadCount > 0)
+                                {
+                                    <span class="badge badge-danger unread-count">@chat.UnreadCount new</span>
+                                }
+                            </h5>
+                            <small class="last-activity">@(chat.LastActivityAt?.ToString("g") ?? chat.CreatedAt.ToString("g"))</small>
+                        </div>
+
+                        @if (chat.LastMessage != null)
+                        {
+                            <p class="mb-1 last-message">
+                                <strong>@chat.LastMessage.SenderName:</strong> @chat.LastMessage.Content
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="mb-1 last-message"></p>
+                        }
+
+                        <small>
+                            @if (chat.ChatType == "Group" && !string.IsNullOrEmpty(chat.DepartmentName))
+                            {
+                                <span>Department: @chat.DepartmentName</span>
+                            }
+                            <span class="participants">Participants: @string.Join(", ", chat.Participants.Select(p => p.UserName))</span>
+                        </small>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        var connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .build();
+
+        // Get current user ID from ViewBag
+        const currentUserId = @Json.Serialize(ViewBag.CurrentUserId);
+
+        // Handle new messages
+        connection.on("ReceiveMessage", function(message) {
+            updateChatWithNewMessage(message);
+        });
+
+        // Keep the original UpdateChatList handler for backward compatibility
+        connection.on("UpdateChatList", function() {
+            // Instead of reloading the page, fetch updated data via AJAX
+            fetchUpdatedChatList();
+        });
+
+        connection.start().catch(function(err) {
+            console.error(err.toString());
+        });
+
+        // Update a chat item when a new message is received
+        function updateChatWithNewMessage(message) {
+            const chatId = message.chatId;
+            const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+
+            if (!chatItem) return; // Chat not in current list
+
+            // Update last message
+            const lastMessageEl = chatItem.querySelector('.last-message');
+            if (lastMessageEl) {
+                lastMessageEl.innerHTML = `<strong>${message.senderName}:</strong> ${message.content}`;
+            }
+
+            // Update timestamp
+            const timestampEl = chatItem.querySelector('.last-activity');
+            if (timestampEl) {
+                timestampEl.textContent = new Date(message.sentAt).toLocaleString();
+            }
+
+            // Update unread count if message is not from current user
+            if (message.senderId !== currentUserId) {
+                let unreadCountEl = chatItem.querySelector('.unread-count');
+                let currentCount = 0;
+
+                if (unreadCountEl) {
+                    // Extract the number from "X new"
+                    currentCount = parseInt(unreadCountEl.textContent);
+                    unreadCountEl.textContent = (currentCount + 1) + " new";
+                } else {
+                    // Create new badge
+                    const titleEl = chatItem.querySelector('h5');
+                    if (titleEl) {
+                        unreadCountEl = document.createElement('span');
+                        unreadCountEl.className = 'badge badge-danger unread-count';
+                        unreadCountEl.textContent = '1 new';
+                        titleEl.appendChild(unreadCountEl);
+                    }
+                }
+
+                // Highlight unread chat
+                chatItem.classList.add('list-group-item-primary');
+            }
+
+            // Move chat to top of list (most recent first)
+            const chatList = document.getElementById('chatList');
+            if (chatList && chatList.firstChild !== chatItem) {
+                chatList.removeChild(chatItem);
+                chatList.insertBefore(chatItem, chatList.firstChild);
+            }
+        }
+
+        // Fetch updated chat list via AJAX
+        function fetchUpdatedChatList() {
+            fetch(window.location.href)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newChatList = doc.getElementById('chatListContainer');
+
+                    if (newChatList) {
+                        const currentChatList = document.getElementById('chatListContainer');
+                        currentChatList.innerHTML = newChatList.innerHTML;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching updated chat list:', error);
+                });
+        }
+    </script>
+} 

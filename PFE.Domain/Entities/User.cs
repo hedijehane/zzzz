@@ -24,7 +24,7 @@ public class User
     public string? ResetToken { get; set; }
     public DateTime? ResetTokenExpiry { get; set; }
     public int Id { get; set; }
-    public required string Email { get; set; }
+    public required string Email { get; set; } 
     public required string PasswordHash { get; set; }
     public required string Name { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -35,4 +35,6 @@ public class User
 
     public int RoleId { get; set; }
     public Role Role { get; set; } = null!;
+    public ICollection<Message> SentMessages { get; set; } = new List<Message>();
+    public ICollection<ChatParticipant> ChatParticipants { get; set; } = new List<ChatParticipant>();
 }

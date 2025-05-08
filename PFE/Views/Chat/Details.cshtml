@@ -1,0 +1,279 @@
+﻿@model PFE.Application.DTOs.ChatDto
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.Name) ? "Chat" : Model.Name;
+    var messages = ViewBag.Messages as List<PFE.Application.DTOs.MessageDto>;
+    var currentUserId = ViewBag.CurrentUserId;
+}
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col">
+            <a asp-action="Index" class="btn btn-outline-secondary">Back to Chats</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>
+                @(string.IsNullOrEmpty(Model.Name) ? "Chat" : Model.Name)
+                <span class="badge badge-secondary">@Model.ChatType</span>
+                <span id="connectionStatus" class="badge badge-warning">Connecting...</span>
+            </h4>
+            <div>
+                @if (Model.ChatType == "Group" && !string.IsNullOrEmpty(Model.DepartmentName))
+                {
+                    <span class="badge badge-info">Department: @Model.DepartmentName</span>
+                }
+                <span class="badge badge-light">@Model.Participants.Count participants</span>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="chat-messages mb-4" style="height: 400px; overflow-y: auto;">
+                @if (messages == null || !messages.Any())
+                {
+                    <div class="text-center text-muted">
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                }
+                else
+                {
+                    foreach (var message in messages.OrderBy(m => m.SentAt))
+                    {
+                        var isCurrentUser = message.SenderId == currentUserId;
+                        <div class="message @(isCurrentUser ? "text-right" : "")">
+                            <div class="message-content @(isCurrentUser ? "bg-primary text-white" : "bg-light")"
+                                 style="display: inline-block; padding: 8px 15px; border-radius: 20px; margin-bottom: 10px; max-width: 80%;">
+                                <div class="message-header">
+                                    <strong>@message.SenderName</strong>
+                                    <small class="text-@(isCurrentUser ? "light" : "muted")">@message.SentAt.ToString("g")</small>
+                                </div>
+                                <div class="message-body">
+                                    @message.Content
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <form asp-action="SendMessage" method="post" id="messageForm">
+                <input type="hidden" name="ChatId" value="@Model.Id" />
+                <input type="hidden" name="SenderId" value="@currentUserId" />
+
+                <div class="input-group">
+                    <input type="text" name="Content" class="form-control" placeholder="Type your message..." required />
+                    <div class="input-group-append">
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-footer">
+            <h5>Participants</h5>
+            <ul class="list-group list-group-flush">
+                @foreach (var participant in Model.Participants)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        @participant.UserName
+                        @if (participant.IsAdmin)
+                        {
+                            <span class="badge badge-primary">Admin</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        // Global variables
+        const chatId = @Model.Id;
+        const currentUserId = @currentUserId;
+        let connection = null;
+        let connectionRetryCount = 0;
+        const maxRetries = 5;
+
+        // Initialize connection
+        function startConnection() {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .withAutomaticReconnect()
+                .build();
+
+            setupConnectionHandlers();
+            connectToHub();
+        }
+
+        // Set up all event handlers for the connection
+        function setupConnectionHandlers() {
+            // Connection state events
+            connection.onreconnecting(error => {
+                console.log("Connection lost, reconnecting...", error);
+                updateConnectionStatus("Reconnecting...", "warning");
+            });
+
+            connection.onreconnected(connectionId => {
+                console.log("Reconnected with ID:", connectionId);
+                updateConnectionStatus("Connected", "success");
+
+                // Rejoin the chat after reconnection
+                connection.invoke("JoinChat", chatId).catch(err => {
+                    console.error("Error rejoining chat:", err);
+                });
+            });
+
+            connection.onclose(error => {
+                console.log("Connection closed", error);
+                updateConnectionStatus("Disconnected", "danger");
+
+                // Try to reconnect if not at max retries
+                if (connectionRetryCount < maxRetries) {
+                    connectionRetryCount++;
+                    setTimeout(connectToHub, 2000 * connectionRetryCount);
+                }
+            });
+
+            // Chat-specific event handlers
+            connection.on("ReceiveMessage", handleNewMessage);
+            connection.on("JoinedChat", handleJoinedChat);
+            connection.on("LeftChat", handleLeftChat);
+            connection.on("MessagesMarkedAsRead", handleMessagesRead);
+            connection.on("ErrorOccurred", handleError);
+        }
+
+        // Connect to the SignalR hub
+        function connectToHub() {
+            updateConnectionStatus("Connecting...", "warning");
+
+            connection.start()
+                .then(() => {
+                    console.log("Connected to SignalR hub");
+                    updateConnectionStatus("Connected", "success");
+                    connectionRetryCount = 0;
+
+                    // Join the chat room
+                    return connection.invoke("JoinChat", chatId);
+                })
+                .catch(err => {
+                    console.error("Error connecting:", err);
+                    updateConnectionStatus("Connection Failed", "danger");
+
+                    // Retry connection after delay
+                    if (connectionRetryCount < maxRetries) {
+                        connectionRetryCount++;
+                        setTimeout(connectToHub, 2000 * connectionRetryCount);
+                    }
+                });
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(text, badgeClass) {
+            const statusElement = document.getElementById("connectionStatus");
+            statusElement.textContent = text;
+            statusElement.className = `badge badge-${badgeClass}`;
+        }
+
+        // Handle new incoming message
+        function handleNewMessage(message) {
+            if (message.chatId === chatId) {
+                const isCurrentUser = message.senderId === currentUserId;
+                const messageHtml = `
+                    <div class="message ${isCurrentUser ? "text-right" : ""}">
+                        <div class="message-content ${isCurrentUser ? "bg-primary text-white" : "bg-light"}"
+                             style="display: inline-block; padding: 8px 15px; border-radius: 20px; margin-bottom: 10px; max-width: 80%;">
+                            <div class="message-header">
+                                <strong>${message.senderName}</strong>
+                                <small class="text-${isCurrentUser ? "light" : "muted"}">${new Date(message.sentAt).toLocaleString()}</small>
+                            </div>
+                            <div class="message-body">
+                                ${message.content}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                $('.chat-messages').append(messageHtml);
+                scrollToBottom();
+
+                // Mark messages as read
+                connection.invoke("MarkMessagesAsRead", chatId).catch(err => {
+                    console.error("Error marking messages as read:", err);
+                });
+            }
+        }
+
+        // Handle successfully joining a chat
+        function handleJoinedChat(joinedChatId) {
+            console.log(`Successfully joined chat ${joinedChatId}`);
+        }
+
+        // Handle successfully leaving a chat
+        function handleLeftChat(leftChatId) {
+            console.log(`Successfully left chat ${leftChatId}`);
+        }
+
+        // Handle messages being marked as read
+        function handleMessagesRead(readChatId) {
+            console.log(`Messages in chat ${readChatId} marked as read`);
+        }
+
+        // Handle errors from the hub
+        function handleError(errorMessage) {
+            console.error("Hub error:", errorMessage);
+            alert("Error: " + errorMessage);
+        }
+
+        // Scroll the chat window to the bottom
+        function scrollToBottom() {
+            const chatContainer = $('.chat-messages');
+            chatContainer.scrollTop(chatContainer[0].scrollHeight);
+        }
+
+        // Submit message via SignalR
+        $("#messageForm").submit(function (e) {
+            e.preventDefault();
+
+            const messageContent = $("input[name='Content']").val().trim();
+            if (!messageContent) return;
+
+            // Check connection state
+            if (connection.state !== signalR.HubConnectionState.Connected) {
+                alert("Not connected to chat server. Trying to reconnect...");
+                connectToHub();
+                return;
+            }
+
+            const message = {
+                chatId: chatId,
+                senderId: currentUserId,
+                content: messageContent
+            };
+
+            connection.invoke("SendMessage", message).catch(function (err) {
+                console.error("Error sending message:", err);
+                alert("Error sending message: " + err.toString());
+            });
+
+            // Clear input field
+            $("input[name='Content']").val("");
+        });
+
+        // Initialize on page load
+        $(document).ready(function() {
+            scrollToBottom();
+            startConnection();
+
+            // Add keyboard shortcut (Ctrl+Enter) to send message
+            $("input[name='Content']").keydown(function(e) {
+                if (e.ctrlKey && e.keyCode === 13) {
+                    $("#messageForm").submit();
+                }
+            });
+        });
+    </script>
+}

@@ -1,0 +1,47 @@
+﻿@model List<PFE.Application.DTOs.UserDto>
+@{
+    ViewData["Title"] = "New Direct Message";
+}
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col">
+            <a asp-action="Index" class="btn btn-outline-secondary">Back to Chats</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h4>Start a New Conversation</h4>
+        </div>
+        <div class="card-body">
+            @if (!Model.Any())
+            {
+                <div class="alert alert-info">
+                    There are no users in your department to chat with.
+                </div>
+            }
+            else
+            {
+                <p class="mb-3">Select a user from your department to start a conversation:</p>
+
+                <div class="list-group">
+                    @foreach (var user in Model)
+                    {
+                        <form asp-action="CreatePrivateChat" method="post" class="list-group-item list-group-item-action">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="otherUserId" value="@user.Id" />
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">@user.Name</h5>
+                                    <small>@user.Email</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Chat</button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
